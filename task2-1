@@ -1,0 +1,80 @@
+#DATA PIPILINE 
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.datasets import fetch_openml
+
+# Step 1: Extract Data
+def extract_data():
+    print("Fetching data...")
+    data = fetch_openml(name="titanic", version=1, as_frame=True)
+    df = data.frame
+    return df
+
+# Step 2: Transform Data
+def transform_data(df):
+    print("Transforming data...")
+    # Splitting Features and Target
+    X = df.drop(columns=["survived"])
+    y = df["survived"]
+
+    # Split data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Defining preprocessing steps
+    numeric_features = X_train.select_dtypes(include=["float64", "int64"]).columns
+    categorical_features = X_train.select_dtypes(include=["object"]).columns
+
+    numeric_transformer = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="mean")),
+        ("scaler", StandardScaler())
+    ])
+
+    categorical_transformer = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore"))
+    ])
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", numeric_transformer, numeric_features),
+            ("cat", categorical_transformer, categorical_features)
+        ]
+    )
+
+    # Apply transformations
+    X_train_transformed = preprocessor.fit_transform(X_train)
+    X_test_transformed = preprocessor.transform(X_test)
+
+    return X_train_transformed, X_test_transformed, y_train, y_test
+
+# Step 3: Load Data
+def load_data(X_train, X_test, y_train, y_test):
+    print("Loading transformed data...")
+    # Save processed data to CSV files
+    pd.DataFrame(X_train).to_csv("X_train_transformed.csv", index=False)
+    pd.DataFrame(X_test).to_csv("X_test_transformed.csv", index=False)
+    pd.DataFrame(y_train).to_csv("y_train.csv", index=False)
+    pd.DataFrame(y_test).to_csv("y_test.csv", index=False)
+    print("Data saved as CSV files.")
+
+# Main Function
+def main():
+    print("Starting ETL process...")
+    # Step 1: Extract
+    raw_data = extract_data()
+    print("Data extraction complete.")
+
+    # Step 2: Transform
+    X_train, X_test, y_train, y_test = transform_data(raw_data)
+    print("Data transformation complete.")
+
+    # Step 3: Load
+    load_data(X_train, X_test, y_train, y_test)
+    print("ETL process complete.")
+
+if __name__ == "__main__":
+    main()
